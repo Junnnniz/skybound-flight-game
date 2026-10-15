@@ -12,6 +12,7 @@
   const message = $("auth-message");
   const submitButtons = document.querySelectorAll(".primary");
   let csrfToken = "";
+  let accountConfig = null;
 
   function setMessage(text, kind = "") {
     message.textContent = text;
@@ -101,6 +102,9 @@
 
   $("signup-form").addEventListener("submit", async event => {
     event.preventDefault();
+    if (!accountConfig) {
+      return setMessage("The account service is unavailable. Start the Skybound server and try again.", "error");
+    }
     if ($("signup-password").value !== $("signup-confirm").value) {
       return setMessage("The passwords do not match.", "error");
     }
@@ -110,7 +114,12 @@
     try {
       const result = await postJson("/api/auth/register", {
         email: $("signup-email").value,
-        password: $("signup-password").value
+        password: $("signup-password").value,
+        ageConfirmed: $("age-confirmed").checked,
+        termsAccepted: $("terms-accepted").checked,
+        privacyAcknowledged: $("privacy-acknowledged").checked,
+        termsVersion: accountConfig.termsVersion,
+        privacyVersion: accountConfig.privacyVersion
       });
       setMessage(result.message, "success");
       form.hidden = true;
@@ -185,14 +194,25 @@
   });
 
   async function initialize() {
+    if (window.location.protocol === "file:") {
+      Object.values(panels).forEach(panel => { panel.hidden = true; });
+      $("auth-tabs").hidden = true;
+      $("local-file-notice").hidden = false;
+      $("form-title").textContent = "Sign in";
+      $("form-subtitle").textContent = "Welcome back. Your flight is ready.";
+      return;
+    }
+
     try {
       const response = await fetch("/api/auth/config", { cache: "no-store" });
       const config = await readApiResponse(response);
+      accountConfig = config;
       if (!config.emailConfigured) {
         $("email-setup-notice").hidden = false;
         $("signup-form").querySelector('button[type="submit"]').disabled = true;
       }
     } catch (error) {
+      $("signup-form").querySelector('button[type="submit"]').disabled = true;
       setMessage(error.message, "error");
     }
 

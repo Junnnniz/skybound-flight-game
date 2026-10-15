@@ -168,6 +168,15 @@ test("serves public policies and protects the game route", async () => {
   const game = await requestJson("/");
   assert.equal(game.response.status, 302);
   assert.equal(game.response.headers.get("location"), "/login");
+  const signupPage = await requestJson("/signup");
+  assert.equal(signupPage.response.status, 200);
+  assert.match(signupPage.result, /id="age-confirmed"[^>]*required/);
+  assert.match(signupPage.result, /id="terms-accepted"[^>]*required/);
+  assert.match(signupPage.result, /id="privacy-acknowledged"[^>]*required/);
+  const authScript = await requestJson("/auth.js");
+  assert.equal(authScript.response.status, 200);
+  assert.match(authScript.result, /termsVersion: accountConfig\.termsVersion/);
+  assert.match(authScript.result, /privacyVersion: accountConfig\.privacyVersion/);
   for (const route of ["/terms", "/privacy", "/responsible-play"]) {
     const policy = await requestJson(route);
     assert.equal(policy.response.status, 200, `${route}\n${serverOutput}\n${JSON.stringify(policy.result)}`);

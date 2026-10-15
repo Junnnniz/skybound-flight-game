@@ -71,6 +71,9 @@
       border-radius: 10px; outline: none; background: #0b1726; color: var(--text); font-size: 14px;
     }
     .field input:focus { border-color: rgba(112, 184, 255, .75); box-shadow: 0 0 0 3px rgba(112, 184, 255, .1); }
+    .consent-list { display: grid; gap: 9px; color: #c4d0df; font-size: 11px; }
+    .consent-list label { display: flex; align-items: flex-start; gap: 8px; }
+    .consent-list input { flex: 0 0 auto; margin: 2px 0 0; accent-color: var(--mint); }
     .password-wrap { position: relative; }
     .password-wrap input { padding-right: 62px; }
     .show-password {
@@ -88,6 +91,9 @@
     .message.error { color: var(--red); }
     .message.success { color: var(--mint); }
     .setup-notice { margin: 0 0 15px; padding: 10px 12px; border: 1px solid rgba(255, 206, 105, .24); border-radius: 9px; background: rgba(255, 206, 105, .07); color: #f2d28c; font-size: 11px; }
+    .setup-notice p { margin: 7px 0 0; }
+    .setup-notice ol { margin: 8px 0 0; padding-left: 19px; }
+    .setup-notice code { color: var(--text); }
     .plain-button { padding: 0; border: 0; background: none; color: var(--blue); font-size: 12px; cursor: pointer; }
     .fine-print { margin: 26px 0 0; color: #71859c; font-size: 10px; line-height: 1.5; }
     [hidden] { display: none !important; }
@@ -148,7 +154,16 @@
         <a href="/signup" id="signup-tab">Create account</a>
       </nav>
 
-      <p class="setup-notice" id="email-setup-notice" hidden>Email delivery is not set up yet. Account creation and recovery will be available after the server email settings are configured.</p>
+      <section class="setup-notice" id="local-file-notice" role="alert" hidden>
+        <strong>Open Skybound through its server to use your account.</strong>
+        <p>This page was opened as a file, so it cannot connect to the account service.</p>
+        <ol>
+          <li>Open PowerShell in the Skybound project folder and run <code>npm start</code>.</li>
+          <li>Open <a href="http://localhost:3000/login">http://localhost:3000/login</a> in your browser.</li>
+        </ol>
+        <p>If you do not already have a verified account, email delivery must be configured before you can sign up.</p>
+      </section>
+      <p class="setup-notice" id="email-setup-notice" hidden>Account creation and recovery are unavailable until SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and EMAIL_FROM are configured in the server’s <code>.env</code> file and the server is restarted.</p>
       <p class="message" id="auth-message" role="status" aria-live="polite"></p>
 
       <form id="login-form" class="form-stack" hidden>
@@ -185,6 +200,11 @@
         <div class="field">
           <label for="signup-confirm">Confirm password</label>
           <input id="signup-confirm" name="confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <div class="consent-list">
+          <label><input id="age-confirmed" type="checkbox" required> I confirm that I am 18 or older.</label>
+          <label><input id="terms-accepted" type="checkbox" required> I have read and accept the <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.</label>
+          <label><input id="privacy-acknowledged" type="checkbox" required> I have read the <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a>.</label>
         </div>
         <button class="primary" type="submit">Create account</button>
       </form>
