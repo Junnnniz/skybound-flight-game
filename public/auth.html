@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>Account — Skybound</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: #101d2e;
+      --panel-2: #14243a;
+      --muted: #91a4bd;
+      --text: #f3f7ff;
+      --mint: #53e0b0;
+      --blue: #70b8ff;
+      --red: #ff8798;
+      --line: rgba(177, 205, 239, .13);
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px;
+      background: radial-gradient(ellipse at 18% 0%, rgba(47, 103, 158, .28), transparent 48%), var(--bg);
+      color: var(--text); font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { color: #a2d2ff; }
+    button, input { font: inherit; }
+    .auth-layout {
+      width: min(970px, 100%); min-height: 590px; display: grid; grid-template-columns: 1fr 1fr;
+      overflow: hidden; border: 1px solid var(--line); border-radius: 23px; background: rgba(16, 29, 46, .94);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, .35);
+    }
+    .visual {
+      position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 590px;
+      overflow: hidden; padding: 34px; background:
+        radial-gradient(ellipse at 72% 34%, rgba(83, 224, 176, .15), transparent 32%),
+        linear-gradient(155deg, #142b43, #0b192a 68%, #091523);
+    }
+    .visual::before {
+      position: absolute; inset: 0; content: ""; opacity: .5;
+      background-image: radial-gradient(circle, rgba(190, 218, 249, .58) 1px, transparent 1.5px);
+      background-size: 83px 71px; mask-image: linear-gradient(180deg, #000, transparent 85%);
+    }
+    .brand, .visual-copy, .flight-art { position: relative; z-index: 1; }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 850; letter-spacing: .02em; }
+    .brand-mark {
+      display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px;
+      background: linear-gradient(145deg, #73c6ff, #3e8df0); color: #07111f; font-size: 20px;
+      box-shadow: 0 6px 22px rgba(62, 141, 240, .25);
+    }
+    .brand-name span { color: var(--blue); }
+    .visual-copy { max-width: 370px; margin-top: auto; padding-top: 70px; }
+    .eyebrow { color: var(--mint); font-size: 10px; font-weight: 850; letter-spacing: .16em; }
+    .visual h1 { margin: 10px 0; font-size: clamp(30px, 4vw, 43px); line-height: 1.08; letter-spacing: -.045em; }
+    .visual-copy p { max-width: 340px; margin: 0; color: #a9bbd0; font-size: 14px; }
+    .flight-art { height: 156px; margin-top: 12px; }
+    .flight-art svg { width: 100%; height: 100%; overflow: visible; }
+    .auth-content { display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 6vw, 58px); }
+    .auth-content h2 { margin: 0; font-size: 27px; letter-spacing: -.035em; }
+    .auth-subtitle { margin: 7px 0 24px; color: var(--muted); font-size: 13px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 21px; padding: 4px; border: 1px solid var(--line); border-radius: 11px; background: #0b1726; }
+    .tabs a { padding: 8px; border-radius: 7px; color: #9aacc0; font-size: 12px; font-weight: 750; text-align: center; }
+    .tabs a[aria-current="page"] { background: #263b50; color: var(--text); }
+    .form-stack { display: grid; gap: 14px; }
+    .field { display: grid; gap: 6px; }
+    .field label { color: #c4d0df; font-size: 12px; font-weight: 650; }
+    .field input {
+      width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid rgba(177, 205, 239, .2);
+      border-radius: 10px; outline: none; background: #0b1726; color: var(--text); font-size: 14px;
+    }
+    .field input:focus { border-color: rgba(112, 184, 255, .75); box-shadow: 0 0 0 3px rgba(112, 184, 255, .1); }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 62px; }
+    .show-password {
+      position: absolute; top: 50%; right: 10px; transform: translateY(-50%); padding: 5px;
+      border: 0; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;
+    }
+    .primary {
+      min-height: 47px; margin-top: 3px; border: 0; border-radius: 10px; background: var(--mint);
+      color: #06231b; font-size: 13px; font-weight: 850; cursor: pointer;
+    }
+    .primary:hover:not(:disabled) { filter: brightness(1.07); }
+    .primary:disabled { opacity: .5; cursor: not-allowed; }
+    .helper-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 15px; color: var(--muted); font-size: 12px; }
+    .message { min-height: 20px; margin: 15px 0 0; color: var(--muted); font-size: 12px; }
+    .message.error { color: var(--red); }
+    .message.success { color: var(--mint); }
+    .setup-notice { margin: 0 0 15px; padding: 10px 12px; border: 1px solid rgba(255, 206, 105, .24); border-radius: 9px; background: rgba(255, 206, 105, .07); color: #f2d28c; font-size: 11px; }
+    .plain-button { padding: 0; border: 0; background: none; color: var(--blue); font-size: 12px; cursor: pointer; }
+    .fine-print { margin: 26px 0 0; color: #71859c; font-size: 10px; line-height: 1.5; }
+    [hidden] { display: none !important; }
+    @media (max-width: 700px) {
+      body { display: block; padding: 14px; }
+      .auth-layout { width: min(480px, 100%); min-height: 0; margin: 0 auto; grid-template-columns: 1fr; border-radius: 18px; }
+      .visual { min-height: 0; padding: 21px 23px 13px; }
+      .visual-copy { padding-top: 30px; }
+      .visual h1 { max-width: 340px; font-size: 29px; }
+      .visual-copy p { font-size: 12px; }
+      .flight-art { height: 92px; margin-top: 0; }
+      .auth-content { padding: 26px 23px 24px; }
+      .auth-content h2 { font-size: 24px; }
+    }
+    @media (max-width: 360px) {
+      body { padding: 9px; }
+      .visual { padding: 17px 18px 10px; }
+      .auth-content { padding: 22px 18px; }
+      .helper-row { flex-wrap: wrap; }
+    }
+  </style>
+  <script src="auth.js" defer></script>
+</head>
+<body>
+  <main class="auth-layout">
+    <section class="visual" aria-label="Skybound">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✈</span><span class="brand-name">sky<span>bound</span></span></div>
+      <div class="visual-copy">
+        <span class="eyebrow">YOUR NEXT FLIGHT AWAITS</span>
+        <h1>Ready when you are.</h1>
+        <p>Create an account or sign in to join the next flight.</p>
+      </div>
+      <div class="flight-art" aria-hidden="true">
+        <svg viewBox="0 0 440 150" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="authLine" x1="0" x2="1" y1="1" y2="0">
+              <stop offset="0" stop-color="#53e0b0" stop-opacity=".04"/>
+              <stop offset="1" stop-color="#53e0b0" stop-opacity=".9"/>
+            </linearGradient>
+            <linearGradient id="authFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#53e0b0" stop-opacity=".17"/>
+              <stop offset="1" stop-color="#53e0b0" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0 140 Q130 142 195 111 T330 45 T440 9 L440 150 L0 150 Z" fill="url(#authFill)"/>
+          <path d="M0 140 Q130 142 195 111 T330 45 T440 9" fill="none" stroke="url(#authLine)" stroke-width="2.5"/>
+          <text x="324" y="44" fill="#d8fff2" font-size="28">✈</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="auth-content" aria-labelledby="form-title">
+      <h2 id="form-title">Sign in</h2>
+      <p class="auth-subtitle" id="form-subtitle">Welcome back. Your flight is ready.</p>
+
+      <nav class="tabs" id="auth-tabs" aria-label="Account">
+        <a href="/login" id="login-tab">Sign in</a>
+        <a href="/signup" id="signup-tab">Create account</a>
+      </nav>
+
+      <p class="setup-notice" id="email-setup-notice" hidden>Email delivery is not set up yet. Account creation and recovery will be available after the server email settings are configured.</p>
+      <p class="message" id="auth-message" role="status" aria-live="polite"></p>
+
+      <form id="login-form" class="form-stack" hidden>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <div class="password-wrap">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <button class="show-password" type="button" data-show-password="login-password">Show</button>
+          </div>
+        </div>
+        <button class="primary" type="submit">Sign in</button>
+        <div class="helper-row">
+          <a href="/reset-password">Forgot password?</a>
+          <button class="plain-button" id="resend-link" type="button" hidden>Resend verification</button>
+        </div>
+      </form>
+
+      <form id="signup-form" class="form-stack" hidden>
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <input id="signup-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        </div>
+        <div class="field">
+          <label for="signup-password">Password</label>
+          <div class="password-wrap">
+            <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+            <button class="show-password" type="button" data-show-password="signup-password">Show</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="signup-confirm">Confirm password</label>
+          <input id="signup-confirm" name="confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <button class="primary" type="submit">Create account</button>
+      </form>
+
+      <form id="reset-request-form" class="form-stack" hidden>
+        <div class="field">
+          <label for="reset-email">Email</label>
+          <input id="reset-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        </div>
+        <button class="primary" type="submit">Send reset link</button>
+        <div class="helper-row"><a href="/login">Back to sign in</a></div>
+      </form>
+
+      <form id="reset-form" class="form-stack" hidden>
+        <div class="field">
+          <label for="new-password">New password</label>
+          <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <div class="field">
+          <label for="new-password-confirm">Confirm new password</label>
+          <input id="new-password-confirm" name="confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <button class="primary" type="submit">Update password</button>
+      </form>
+
+      <section id="verify-panel" hidden>
+        <button class="primary" id="verify-button" type="button">Verify email</button>
+      </section>
+
+      <p class="fine-print">Skybound accounts are for the play-money demo. No deposits, withdrawals, or real-money wagering.</p>
+    </section>
+  </main>
+</body>
+</html>

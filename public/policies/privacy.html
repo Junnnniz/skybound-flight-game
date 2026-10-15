@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>Privacy Notice — Skybound</title>
+  <style>
+    :root { color-scheme:dark; --bg:#07111f; --panel:#101d2e; --text:#f3f7ff; --muted:#a8b8cc; --blue:#70b8ff; --mint:#53e0b0; --line:rgba(177,205,239,.15); }
+    * { box-sizing:border-box; } body { margin:0; padding:24px; background:radial-gradient(ellipse at 50% 0%,rgba(47,103,158,.2),transparent 50%),var(--bg); color:var(--text); font:14px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { width:min(850px,100%); margin:30px auto; padding:clamp(22px,5vw,48px); border:1px solid var(--line); border-radius:18px; background:var(--panel); }
+    a { color:var(--blue); } .brand { color:var(--mint); font-weight:850; letter-spacing:.03em; text-decoration:none; }
+    .draft { margin:20px 0; padding:12px 14px; border:1px solid rgba(255,206,105,.27); border-radius:10px; background:rgba(255,206,105,.08); color:#f3d58e; font-size:12px; }
+    h1 { margin:22px 0 4px; font-size:clamp(28px,5vw,38px); letter-spacing:-.04em; } h2 { margin:26px 0 7px; font-size:18px; }
+    p,li { color:var(--muted); } strong { color:var(--text); } li+li { margin-top:5px; }
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:12px; } th,td { padding:9px; border:1px solid var(--line); text-align:left; vertical-align:top; } td { color:var(--muted); } th { color:var(--text); }
+    .policy-links { display:flex; flex-wrap:wrap; gap:15px; margin-top:32px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="brand" href="/login">✈ SKYBOUND</a>
+    <div class="draft"><strong>DRAFT — NOT READY FOR PUBLIC LAUNCH.</strong> This template is not legal advice. The controller identity, contact, processors, transfers and retention must be completed and checked against the live deployment by Kenyan privacy counsel before collecting real users’ data.</div>
+    <h1>Privacy Notice</h1>
+    <p>Draft version 2026-10-16-draft-1 · Intended jurisdiction: Kenya · Intended controller: {{LEGAL_ENTITY_NAME}}.</p>
+
+    <h2>1. Who is responsible</h2>
+    <p>The proposed data controller is <strong>{{LEGAL_ENTITY_NAME_AND_REGISTRATION_DETAILS}}</strong>, {{BUSINESS_ADDRESS}}. Contact the privacy team at <strong>{{PRIVACY_CONTACT_EMAIL}}</strong>. These are placeholders, not real contact details. Replace them before launch. If applicable, publish the Data Protection Officer’s details: {{DPO_NAME_AND_CONTACT_OR_NOT_APPLICABLE_AFTER_REVIEW}}.</p>
+
+    <h2>2. Information this demo handles</h2>
+    <ul>
+      <li><strong>Account:</strong> email address, salted password hash, verification status and creation time. The plaintext password is not stored by the app.</li>
+      <li><strong>Security and session:</strong> a random session identifier in an essential HTTP-only cookie, a CSRF token held in the session, and hashed verification/reset tokens with expiry. The rate limiter uses request IP addresses in memory while it operates. Hosting, SMTP and platform providers may process technical connection metadata in their own logs; confirm their actual logging before launch.</li>
+      <li><strong>Signup confirmations:</strong> the version of these Terms and this Notice accepted, a timestamp, and your self-confirmation that you are 18 or older.</li>
+      <li><strong>Email:</strong> verification and password-reset messages are sent through the operator’s configured email provider. Confirm its identity, processing terms and locations here before launch: {{EMAIL_PROVIDER_AND_COUNTRIES}}.</li>
+    </ul>
+    <p>The current game balance, wagers, multiplier history and round state are maintained in the browser and are not saved as an account ledger by this server. Do not enter payment details, identity documents, health data, or other sensitive information into the game.</p>
+
+    <h2>3. Why information is used</h2>
+    <p>Account data is used to create and secure accounts, verify email, sign users in, provide password recovery, remember a session, enforce the age and policy confirmations, prevent abuse, and respond to support or legal requests. The specific lawful basis for each purpose must be confirmed by the operator under the Kenya Data Protection Act, 2019 and applicable regulations before launch; this draft does not substitute for that assessment.</p>
+
+    <h2>4. Cookies and local storage</h2>
+    <p>The app uses an essential, HTTP-only, same-site session cookie to keep a signed-in session secure. It is not intended for advertising or cross-site tracking. The current game does not intentionally save game history or account data in browser local storage. Confirm cookie duration and session-store cleanup for the deployment.</p>
+
+    <h2>5. Sharing and transfers</h2>
+    <p>Account information is available to personnel who need it for operation and security and to service providers that host the app, database, sessions or account emails. Their legal names, access, contracts, security measures, hosting countries and any transfer safeguards are deployment-specific and must be listed here before launch: {{HOSTING_AND_PROCESSOR_DETAILS_AND_LOCATIONS}}. We do not sell account data. Disclosure may also occur where required by law or necessary to protect rights and security, subject to applicable law.</p>
+
+    <h2>6. Retention and deletion</h2>
+    <p>Account, acceptance and session records are stored in SQLite by this demo. Verification and reset tokens expire after 24 hours; the operator must ensure expired token records are purged. Before launch, set and document periods for account, session, backup, email and security records, including deletion from backups. You may request account closure and deletion by emailing {{PRIVACY_CONTACT_EMAIL}}. We will verify your request and explain any lawful retention. This draft makes no claim that deletion is instantaneous from backups.</p>
+
+    <h2>7. Your choices and rights</h2>
+    <p>Subject to applicable law, you may request information about your personal data, access or correction, deletion, restriction or objection where available, withdraw consent where processing relies on consent, and complain to the Office of the Data Protection Commissioner (ODPC). Contact {{PRIVACY_CONTACT_EMAIL}} to make a request. We may need to verify your identity and will respond within applicable statutory timelines. ODPC information: <a href="https://www.odpc.go.ke/" rel="noopener noreferrer">odpc.go.ke</a>. The applicable law determines the rights and exceptions in a particular case.</p>
+
+    <h2>8. Security and children</h2>
+    <p>The app uses password hashing, restricted session cookies, request protections and rate limits, but no internet service can promise perfect security. Contact {{SECURITY_CONTACT_EMAIL}} promptly if you discover a suspected personal-data incident. The service is intended only for users aged 18 or older; signup currently records a self-declaration and does not independently verify age. If you believe a minor’s information was submitted, contact {{PRIVACY_CONTACT_EMAIL}}.</p>
+
+    <h2>9. Changes and complaints</h2>
+    <p>We will publish revisions with a new version and date. For privacy questions or complaints, contact {{PRIVACY_CONTACT_EMAIL}}. Complaints may also be directed to the ODPC under applicable procedures. Complete and test this complaint process before launch.</p>
+
+    <nav class="policy-links" aria-label="Policies"><a href="/terms">Terms of Use</a><a href="/responsible-play">Responsible Play</a><a href="/login">Back to sign in</a></nav>
+  </main>
+</body>
+</html>

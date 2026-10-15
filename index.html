@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>Skybound — Flight Game</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: #101d2e;
+      --panel-2: #14243a;
+      --muted: #91a4bd;
+      --text: #f3f7ff;
+      --mint: #53e0b0;
+      --blue: #70b8ff;
+      --red: #ff647d;
+      --line: rgba(177, 205, 239, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 50% -20%, rgba(47, 103, 158, .24), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font: 14px/1.4 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+    .brand-mark {
+      display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px;
+      background: linear-gradient(145deg, #73c6ff, #3e8df0); color: #07111f; font-size: 20px;
+      box-shadow: 0 6px 22px rgba(62, 141, 240, .25);
+    }
+    .brand span:last-child { color: var(--blue); }
+    .balance {
+      display: flex; align-items: center; gap: 9px; padding: 9px 14px; border: 1px solid var(--line);
+      border-radius: 12px; background: rgba(16, 29, 46, .8); color: var(--muted); font-size: 13px;
+    }
+    .balance strong { color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .account-controls { display: flex; align-items: center; gap: 9px; }
+    .account-email { max-width: 190px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .logout-button { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: #c5d2e1; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .logout-button:hover:not(:disabled) { border-color: rgba(112, 184, 255, .45); color: var(--text); }
+    .logout-button:disabled { cursor: wait; opacity: .65; }
+
+    main { padding: 20px 0 40px; }
+
+    .game-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    .flight-card, .control-card, .history-card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+    .flight-card { position: relative; min-height: 390px; overflow: hidden; }
+    .flight-top { position: absolute; z-index: 2; top: 18px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .round-id { color: var(--muted); font-size: 12px; }
+    .status { display: flex; align-items: center; gap: 7px; color: #b7c6da; font-size: 12px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #708198; }
+    .status.live .status-dot { background: var(--mint); box-shadow: 0 0 11px var(--mint); animation: pulse 1s infinite; }
+    .status.crashed .status-dot { background: var(--red); }
+    @keyframes pulse { 50% { opacity: .45; } }
+
+    .sky {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 68% 30%, rgba(63, 135, 199, .14), transparent 36%),
+        linear-gradient(180deg, rgba(17, 40, 65, .62), rgba(12, 28, 47, .34) 67%, rgba(7, 17, 31, .14));
+    }
+    .sky::before {
+      content: ""; position: absolute; inset: 0; opacity: .45;
+      background-image: radial-gradient(circle, rgba(190, 218, 249, .62) 1px, transparent 1.5px);
+      background-size: 83px 71px;
+      mask-image: linear-gradient(180deg, #000, transparent 80%);
+    }
+    .horizon { position: absolute; height: 1px; left: 0; right: 0; bottom: 62px; background: linear-gradient(90deg, transparent, rgba(115, 180, 232, .25), transparent); }
+    .chart { position: absolute; inset: 62px 14px 40px; width: calc(100% - 28px); height: calc(100% - 102px); overflow: visible; }
+    .chart-grid line { stroke: rgba(169, 201, 236, .09); stroke-width: 1; }
+    .flight-area { fill: url(#areaGradient); opacity: .7; }
+    .flight-line { fill: none; stroke: var(--mint); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 8px rgba(83, 224, 176, .4)); }
+    .plane {
+      position: absolute; left: 0; top: 0; z-index: 1; font-size: 37px; line-height: 1;
+      transform: translate(-50%, -50%) rotate(45deg); transform-origin: center;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .45));
+    }
+    .round-countdown {
+      position: absolute; z-index: 2; top: 43%; left: 50%; width: min(260px, 72%);
+      transform: translate(-50%, -50%); text-align: center;
+    }
+    .round-countdown[hidden] { display: none; }
+    .countdown-value { display: block; color: var(--text); font-size: clamp(54px, 10vw, 76px); font-weight: 850; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.06em; }
+    .countdown-label { display: block; margin-top: 7px; color: #b5c6da; font-size: 12px; }
+    .countdown-track { height: 5px; margin-top: 14px; overflow: hidden; border-radius: 999px; background: rgba(177, 205, 239, .16); }
+    .countdown-progress { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--mint)); transform: scaleX(1); transform-origin: left; transition: transform .2s linear; box-shadow: 0 0 12px rgba(83, 224, 176, .42); }
+    .multiplier {
+      position: absolute; top: 43%; left: 50%; transform: translate(-50%, -50%);
+      font-size: clamp(54px, 10vw, 82px); line-height: 1; font-weight: 850; letter-spacing: -.07em;
+      font-variant-numeric: tabular-nums; text-shadow: 0 5px 36px rgba(0, 0, 0, .36);
+    }
+    .multiplier.live { color: var(--mint); }
+    .multiplier.crashed { color: var(--red); }
+    .game-message { position: absolute; top: calc(43% + 54px); left: 50%; transform: translateX(-50%); color: #aec0d5; font-size: 13px; white-space: nowrap; }
+    .axis-label { position: absolute; bottom: 15px; left: 20px; color: #70839b; font-size: 11px; }
+
+    .control-card { padding: 12px; }
+    .bets-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .bet-slot { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); }
+    .bet-slot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .bet-layout { display: grid; grid-template-columns: minmax(92px, .8fr) minmax(0, 1.2fr); gap: 10px; align-items: start; }
+    .bet-action { display: flex; flex-direction: column; gap: 7px; }
+    .bet-action .slot-button { min-height: 48px; }
+    .bet-stake-summary { color: var(--text); font-size: 14px; text-align: center; font-variant-numeric: tabular-nums; }
+    .bet-config .quick-bets { margin-top: 6px; }
+    .auto-controls { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .mode-switch {
+      position: relative; display: grid; grid-template-columns: 1fr 1fr; width: 112px; height: 30px; padding: 3px;
+      border: 1px solid var(--line); border-radius: 9px; background: #0b1726; cursor: pointer; isolation: isolate;
+    }
+    .mode-switch::before {
+      position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px);
+      border-radius: 6px; background: #263b50; content: ""; transition: transform .18s ease, background .18s ease;
+    }
+    .mode-switch[aria-pressed="true"]::before { transform: translateX(100%); background: rgba(83, 224, 176, .23); }
+    .mode-switch span { display: grid; place-items: center; color: #9aacc0; font-size: 9px; font-weight: 800; letter-spacing: .035em; }
+    .mode-switch[aria-pressed="false"] span:first-child,
+    .mode-switch[aria-pressed="true"] span:last-child { color: var(--text); }
+    .mode-switch:disabled { cursor: not-allowed; opacity: .5; }
+    .auto-target { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; }
+    .auto-target[hidden] { display: none; }
+    .auto-target input { min-width: 0; width: 100%; height: 32px; padding: 0 8px; border: 1px solid rgba(177, 205, 239, .19); border-radius: 8px; outline: 0; background: #0b1726; color: var(--text); font-size: 13px; }
+    .auto-target span { color: var(--muted); font-size: 11px; }
+    .slot-state { color: var(--muted); font-size: 10px; font-weight: 600; }
+    .slot-state.placed { color: var(--blue); }
+    .slot-state.cashed { color: var(--mint); }
+    .slot-state.lost { color: var(--red); }
+    .bet-field { display: flex; height: 42px; align-items: center; border: 1px solid rgba(177, 205, 239, .19); border-radius: 11px; background: #0b1726; overflow: hidden; }
+    .currency { padding-left: 13px; color: #a7bdd6; font-weight: 700; }
+    .bet-field input { min-width: 0; width: 100%; height: 100%; padding: 0 12px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 17px; font-weight: 750; }
+    .bet-field:focus-within { border-color: rgba(112, 184, 255, .65); box-shadow: 0 0 0 3px rgba(112, 184, 255, .08); }
+    .quick-bets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 8px; }
+    .quick-bets button {
+      min-height: 36px; padding: 6px 4px; border: 1px solid var(--line); border-radius: 8px; background: #142338;
+      color: #aebfd3; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .quick-bets button:hover { border-color: rgba(112, 184, 255, .45); color: var(--text); }
+    .cashout-info { display: flex; justify-content: space-between; align-items: center; margin: 11px 0 8px; color: var(--muted); font-size: 12px; }
+    .cashout-info strong { color: var(--text); font-size: 13px; }
+    .main-button {
+      width: 100%; min-height: 44px; border: 0; border-radius: 11px; background: var(--mint);
+      color: #06231b; font-weight: 850; cursor: pointer; transition: filter .15s, transform .15s, background .15s;
+    }
+    .main-button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+    .main-button:disabled { cursor: not-allowed; opacity: .45; }
+    .main-button.cashout { background: #ffce69; }
+    .main-button.play-again { background: #76baff; color: #081a2b; }
+    .slot-button.cashout { background: #ffce69; }
+    .slot-button.cashed { background: rgba(83, 224, 176, .15); color: var(--mint); }
+    .slot-button.lost { background: rgba(255, 100, 125, .12); color: var(--red); }
+    .slot-button[hidden] { display: none; }
+    .notice { min-height: 36px; margin: 11px 0 0; color: #8fa3ba; font-size: 11px; line-height: 1.45; }
+    .notice.error { color: #ff91a2; }
+    .fair-note { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); color: #8296ad; font-size: 10px; line-height: 1.5; }
+
+    .history-card { margin-top: 16px; padding: 16px 19px; }
+    .history-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .history-heading h2 { margin: 0; font-size: 13px; }
+    .history-heading span { color: #8194aa; font-size: 11px; }
+    .history { display: flex; gap: 8px; min-height: 32px; overflow-x: auto; }
+    .history-item { flex: 0 0 auto; padding: 6px 10px; border-radius: 8px; background: rgba(255, 100, 125, .1); color: var(--red); font-size: 12px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .history-item.high { background: rgba(83, 224, 176, .1); color: var(--mint); }
+    .empty-history { color: #73869d; font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 780px) {
+      .game-grid { grid-template-columns: 1fr; }
+      .flight-card { min-height: 350px; }
+      .control-card { display: block; }
+    }
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 22px, 1180px); }
+      header { height: 64px; }
+      .brand { gap: 7px; font-size: 16px; }
+      .brand-mark { width: 32px; height: 32px; }
+      .balance { gap: 6px; padding: 8px 9px; font-size: 10px; }
+      .balance strong { font-size: 13px; }
+      .header-actions { gap: 5px; }
+      .account-controls { gap: 5px; }
+      .account-email { display: none; }
+      .logout-button { padding: 8px 7px; font-size: 10px; }
+      main { padding-top: 14px; }
+      .flight-card { min-height: 340px; }
+      .control-card { display: block; }
+      .bets-grid { gap: 9px; }
+      .bet-slot { min-width: 0; padding: 9px; }
+      .bet-layout { grid-template-columns: minmax(58px, .72fr) minmax(0, 1.28fr); gap: 7px; }
+      .bet-action .slot-button { min-height: 44px; font-size: 11px; }
+      .bet-stake-summary { font-size: 12px; }
+      .bet-slot-head { margin-bottom: 6px; }
+      .slot-state { font-size: 9px; }
+      .bet-field { height: 44px; }
+      .currency { padding-left: 9px; font-size: 12px; }
+      .bet-field input { padding: 0 7px; font-size: 14px; }
+      .quick-bets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+      .quick-bets button { padding: 6px 3px; font-size: 11px; }
+      .cashout-info { gap: 4px; align-items: flex-start; flex-direction: column; margin: 12px 0 8px; font-size: 10px; }
+      .cashout-info strong { font-size: 12px; }
+      .slot-button { padding: 7px 5px; font-size: 11px; white-space: normal; }
+      .plane { font-size: 31px; }
+    }
+    @media (max-width: 360px) {
+      .balance > span { display: none; }
+      .bets-grid { grid-template-columns: 1fr; }
+      .quick-bets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✈</span><span>sky<span>bound</span></span></div>
+      <div class="header-actions">
+        <div class="balance" aria-live="polite"><span>PLAY BALANCE</span><strong id="balance">KSh 1,000.00</strong></div>
+        <div class="account-controls"><span class="account-email" id="account-email">Loading account…</span><button class="logout-button" id="logout-button" type="button">Sign out</button></div>
+      </div>
+    </header>
+
+    <main>
+      <section class="game-grid" aria-label="Skybound crash game">
+        <div class="flight-card">
+          <div class="sky"></div>
+          <div class="flight-top">
+            <span class="round-id" id="round-id">ROUND #001</span>
+            <span class="status" id="status"><span class="status-dot"></span><span id="status-text">Waiting for takeoff</span></span>
+          </div>
+          <svg class="chart" viewBox="0 0 800 330" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#53e0b0" stop-opacity=".3"/>
+                <stop offset="100%" stop-color="#53e0b0" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g class="chart-grid">
+              <line x1="0" y1="80" x2="800" y2="80"/><line x1="0" y1="160" x2="800" y2="160"/>
+              <line x1="0" y1="240" x2="800" y2="240"/><line x1="160" y1="0" x2="160" y2="330"/>
+              <line x1="320" y1="0" x2="320" y2="330"/><line x1="480" y1="0" x2="480" y2="330"/>
+              <line x1="640" y1="0" x2="640" y2="330"/>
+            </g>
+            <path class="flight-area" id="flight-area" d="M0 300 L0 300 Z"/>
+            <path class="flight-line" id="flight-line" d="M0 300"/>
+          </svg>
+          <div class="plane" id="plane" aria-hidden="true">✈️</div>
+          <div class="multiplier" id="multiplier" aria-live="polite">1.00×</div>
+          <div class="game-message" id="game-message">Place a bet to get ready</div>
+          <div class="round-countdown" id="round-countdown" hidden aria-live="polite">
+            <span class="countdown-value" id="countdown-value">10</span>
+            <span class="countdown-label" id="countdown-label">Bets close at takeoff</span>
+            <div class="countdown-track" aria-hidden="true"><div class="countdown-progress" id="countdown-progress"></div></div>
+          </div>
+          <div class="horizon"></div>
+          <div class="axis-label">FLIGHT PATH</div>
+        </div>
+
+        <aside class="control-card">
+          <div class="bets-grid">
+            <section class="bet-slot" aria-label="Bet one">
+              <div class="bet-slot-head"><button class="mode-switch" id="auto-enabled-0" type="button" role="switch" aria-checked="false" aria-pressed="false" aria-label="Bet one mode: manual"><span>MANUAL</span><span>AUTO</span></button><span class="slot-state" id="slot-state-0">Ready</span></div>
+              <div class="bet-layout">
+                <div class="bet-action">
+                  <button class="main-button slot-button" type="button" id="slot-button-0">BET</button>
+                  <div class="bet-stake-summary" id="bet-summary-0" aria-label="Bet one amount">KSh 100.00</div>
+                </div>
+                <div class="bet-config">
+                  <label class="sr-only" for="bet-amount-0">Bet one amount in Kenyan shillings</label>
+                  <div class="bet-field"><span class="currency" aria-hidden="true">KSh</span><input id="bet-amount-0" type="number" min="10" max="1000" step="10" value="100" inputmode="numeric" aria-describedby="notice"></div>
+                  <div class="quick-bets" aria-label="Bet one quick amount">
+                    <button type="button" data-slot="0" data-amount="50">50</button><button type="button" data-slot="0" data-amount="100">100</button>
+                    <button type="button" data-slot="0" data-amount="250">250</button><button type="button" data-slot="0" data-amount="500">500</button>
+                  </div>
+                  <div class="auto-controls">
+                    <label class="auto-target" id="auto-target-wrap-0" hidden><span class="sr-only">Multiplier</span><input id="auto-target-0" type="number" min="1.01" max="1000" step="0.01" value="2.00" aria-label="Bet one automatic cashout multiplier"><span aria-hidden="true">×</span></label>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="bet-slot" aria-label="Bet two">
+              <div class="bet-slot-head"><button class="mode-switch" id="auto-enabled-1" type="button" role="switch" aria-checked="false" aria-pressed="false" aria-label="Bet two mode: manual"><span>MANUAL</span><span>AUTO</span></button><span class="slot-state" id="slot-state-1">Ready</span></div>
+              <div class="bet-layout">
+                <div class="bet-action">
+                  <button class="main-button slot-button" type="button" id="slot-button-1">BET</button>
+                  <div class="bet-stake-summary" id="bet-summary-1" aria-label="Bet two amount">KSh 100.00</div>
+                </div>
+                <div class="bet-config">
+                  <label class="sr-only" for="bet-amount-1">Bet two amount in Kenyan shillings</label>
+                  <div class="bet-field"><span class="currency" aria-hidden="true">KSh</span><input id="bet-amount-1" type="number" min="10" max="1000" step="10" value="100" inputmode="numeric" aria-describedby="notice"></div>
+                  <div class="quick-bets" aria-label="Bet two quick amount">
+                    <button type="button" data-slot="1" data-amount="50">50</button><button type="button" data-slot="1" data-amount="100">100</button>
+                    <button type="button" data-slot="1" data-amount="250">250</button><button type="button" data-slot="1" data-amount="500">500</button>
+                  </div>
+                  <div class="auto-controls">
+                    <label class="auto-target" id="auto-target-wrap-1" hidden><span class="sr-only">Multiplier</span><input id="auto-target-1" type="number" min="1.01" max="1000" step="0.01" value="2.00" aria-label="Bet two automatic cashout multiplier"><span aria-hidden="true">×</span></label>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <p class="notice" id="notice" role="status">Place one or two bets before the 10-second countdown ends.</p>
+          <div class="fair-note">For fun only. Balances and random crash results run in your browser and are not independently verified. They have no cash or prize value. No deposits, withdrawals, or real-money wagering.</div>
+        </aside>
+      </section>
+
+      <section class="history-card" aria-label="Recent flight results">
+        <div class="history-heading"><h2>Recent flights</h2><span>Newest first · last 10</span></div>
+        <div class="history" id="history"><span class="empty-history">Your flight history will show up here.</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const STARTING_BALANCE = 1000;
+      const MIN_BET = 10;
+      const MAX_CRASH_MULTIPLIER = 100;
+      const GROWTH_RATE = 0.24;
+      const NEXT_ROUND_DELAY = 10000;
+      const money = value => `KSh ${value.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const $ = id => document.getElementById(id);
+
+      const balanceNode = $("balance");
+      const notice = $("notice");
+      const multiplierNode = $("multiplier");
+      const messageNode = $("game-message");
+      const statusNode = $("status");
+      const statusText = $("status-text");
+      const plane = $("plane");
+      const countdownNode = $("round-countdown");
+      const countdownValue = $("countdown-value");
+      const countdownLabel = $("countdown-label");
+      const countdownProgress = $("countdown-progress");
+      const line = $("flight-line");
+      const area = $("flight-area");
+      const chart = document.querySelector(".chart");
+      const flightCard = document.querySelector(".flight-card");
+      const historyNode = $("history");
+      const roundNode = $("round-id");
+      const slots = [0, 1].map(index => ({
+        input: $(`bet-amount-${index}`),
+        summary: $(`bet-summary-${index}`),
+        button: $(`slot-button-${index}`),
+        status: $(`slot-state-${index}`),
+        autoEnabled: $(`auto-enabled-${index}`),
+        autoTarget: $(`auto-target-${index}`),
+        autoTargetWrap: $(`auto-target-wrap-${index}`),
+        wager: null
+      }));
+
+      let balance = STARTING_BALANCE;
+      let round = 1;
+      let state = "idle";
+      let multiplier = 1;
+      let crashAt = 0;
+      let startedAt = 0;
+      let animationFrame = 0;
+      let countdownInterval = 0;
+      let nextRoundAt = 0;
+      let results = [];
+
+      const displayBalance = () => {
+        balanceNode.textContent = money(balance);
+      };
+
+      const setNotice = (text, isError = false) => {
+        notice.textContent = text;
+        notice.classList.toggle("error", isError);
+      };
+
+      function updateControls() {
+        const secondsLeft = Math.max(0, Math.ceil((nextRoundAt - Date.now()) / 1000));
+        const showCountdown = state === "betting" || state === "ended";
+        countdownNode.hidden = !showCountdown;
+        multiplierNode.hidden = showCountdown;
+        messageNode.hidden = showCountdown;
+        if (showCountdown) {
+          const progress = Math.max(0, Math.min(1, 1 - (nextRoundAt - Date.now()) / NEXT_ROUND_DELAY));
+          countdownValue.textContent = String(secondsLeft);
+          countdownLabel.textContent = state === "betting" ? "Takeoff in" : "Next flight in";
+          countdownProgress.style.transform = `scaleX(${progress})`;
+        }
+        if (state === "betting") {
+          statusText.textContent = `Bets open · takeoff in ${secondsLeft}s`;
+          messageNode.textContent = `Place bets · takeoff in ${secondsLeft}s`;
+        }
+        const quickButtons = document.querySelectorAll(".quick-bets button");
+        slots.forEach((slot, index) => {
+          const amount = Number(slot.input.value);
+          const hasWager = slot.wager !== null;
+          const canEdit = (state === "running" && (!hasWager || slot.wager.status !== "active" && slot.wager.status !== "queued"))
+            || (state === "ended" && (!hasWager || slot.wager.status !== "queued"))
+            || (!hasWager && (state === "idle" || state === "betting"));
+          const autoEnabled = slot.autoEnabled.getAttribute("aria-pressed") === "true";
+          slot.input.disabled = !canEdit;
+          slot.autoEnabled.disabled = !canEdit;
+          slot.autoEnabled.setAttribute("aria-checked", String(autoEnabled));
+          slot.autoEnabled.setAttribute("aria-label", `Bet ${index + 1} mode: ${autoEnabled ? "auto" : "manual"}`);
+          slot.autoTargetWrap.hidden = !autoEnabled;
+          slot.autoTarget.disabled = !canEdit || !autoEnabled;
+          slot.summary.textContent = money(hasWager ? slot.wager.amount : Number.isFinite(amount) && amount > 0 ? amount : 0);
+          quickButtons.forEach(item => {
+            if (Number(item.dataset.slot) === index) item.disabled = !canEdit;
+          });
+          slot.status.className = "slot-state";
+
+          if (state === "running" && hasWager && slot.wager.status === "active") {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} potential return`);
+            slot.status.textContent = "In flight";
+            slot.status.classList.add("placed");
+            slot.button.className = "main-button slot-button cashout";
+            slot.button.textContent = "CASH OUT";
+            slot.button.disabled = false;
+            slot.summary.textContent = money(slot.wager.amount * multiplier);
+          } else if (state === "running" && hasWager && slot.wager.status === "queued") {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} next flight amount`);
+            slot.status.textContent = "Next flight";
+            slot.status.classList.add("placed");
+            slot.button.className = "main-button slot-button play-again";
+            slot.button.textContent = "BET PLACED";
+            slot.button.disabled = true;
+            slot.summary.textContent = money(slot.wager.amount);
+          } else if (state === "running") {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} next flight amount`);
+            if (hasWager && slot.wager.status === "cashed") {
+              slot.status.textContent = "Cashed out";
+              slot.status.classList.add("cashed");
+              slot.summary.textContent = money(slot.wager.payout);
+            } else if (hasWager && slot.wager.status === "lost") {
+              slot.status.textContent = "Bet lost";
+              slot.status.classList.add("lost");
+            }
+            slot.button.className = "main-button slot-button";
+            slot.button.textContent = "BET NEXT";
+            slot.button.disabled = !Number.isFinite(amount) || amount < MIN_BET || amount > 1000 || amount > balance;
+          } else if (state === "ended" && hasWager && slot.wager.status === "queued") {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} amount`);
+            slot.status.textContent = "Bet placed";
+            slot.status.classList.add("placed");
+            slot.button.className = "main-button slot-button play-again";
+            slot.button.textContent = "BET PLACED";
+            slot.button.disabled = true;
+            slot.summary.textContent = money(slot.wager.amount);
+          } else if (state === "ended") {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} amount`);
+            if (hasWager) {
+              slot.status.textContent = slot.wager.status === "lost" ? "Bet lost" : "Cashed out";
+              slot.status.classList.add(slot.wager.status === "lost" ? "lost" : "cashed");
+            }
+            slot.button.className = "main-button slot-button";
+            slot.button.textContent = "BET";
+            slot.button.disabled = !Number.isFinite(amount) || amount < MIN_BET || amount > 1000 || amount > balance;
+            slot.summary.textContent = money(Number.isFinite(amount) && amount > 0 ? amount : 0);
+          } else if (state === "betting" && hasWager) {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} amount`);
+            slot.status.textContent = "Bet placed";
+            slot.status.classList.add("placed");
+            slot.button.className = "main-button slot-button";
+            slot.button.textContent = `Bet placed · ${money(slot.wager.amount)}`;
+            slot.button.disabled = true;
+            slot.summary.textContent = money(slot.wager.amount);
+          } else {
+            slot.summary.setAttribute("aria-label", `Bet ${index + 1} amount`);
+            slot.button.className = "main-button slot-button";
+            slot.button.textContent = "BET";
+            slot.button.disabled = !Number.isFinite(amount) || amount < MIN_BET || amount > 1000 || amount > balance;
+            slot.summary.textContent = money(Number.isFinite(amount) && amount > 0 ? amount * (state === "running" ? multiplier : 1) : 0);
+          }
+        });
+      }
+
+      function resetFlight(preserveQueuedBets = false) {
+        cancelAnimationFrame(animationFrame);
+        slots.forEach(slot => {
+          if (!preserveQueuedBets || !slot.wager || slot.wager.status !== "queued") slot.wager = null;
+        });
+        multiplier = 1;
+        state = "idle";
+        multiplierNode.textContent = "1.00×";
+        multiplierNode.className = "multiplier";
+        messageNode.textContent = "Place a bet to get ready";
+        statusNode.className = "status";
+        statusText.textContent = "Waiting for takeoff";
+        plane.className = "plane";
+        line.setAttribute("d", "M34 300");
+        area.setAttribute("d", "M34 300 L34 300 Z");
+        positionPlane(34, 300);
+        roundNode.textContent = `ROUND #${String(round).padStart(3, "0")}`;
+        setNotice("Place one or two bets before the 10-second countdown ends.");
+        updateControls();
+      }
+
+      function drawFlight(elapsed) {
+        const progress = Math.min(elapsed / 12, 1);
+        const x = 34 + progress * 720;
+        const normalized = Math.min(Math.log(multiplier) / Math.log(20), 1);
+        const y = 300 - normalized * 250;
+        const controlX = Math.max(34, x * .45);
+        const controlY = Math.min(300, 300 - normalized * 30);
+        const d = `M34 300 Q${controlX} ${controlY} ${x} ${y}`;
+        line.setAttribute("d", d);
+        area.setAttribute("d", `${d} L${x} 330 L34 330 Z`);
+        const chartBounds = chart.getBoundingClientRect();
+        const screenSlopeX = (x - controlX) / 800 * chartBounds.width;
+        const screenSlopeY = (y - controlY) / 330 * chartBounds.height;
+        positionPlane(x, y, Math.atan2(screenSlopeY, screenSlopeX));
+      }
+
+      function positionPlane(x, y, angle = 0) {
+        const chartBounds = chart.getBoundingClientRect();
+        const cardBounds = flightCard.getBoundingClientRect();
+        const rotation = angle + Math.PI / 4;
+        const tailOffset = plane.offsetWidth * .34;
+        const endpointX = chartBounds.left - cardBounds.left + x / 800 * chartBounds.width;
+        const endpointY = chartBounds.top - cardBounds.top + y / 330 * chartBounds.height;
+        plane.style.left = `${endpointX + Math.cos(angle) * tailOffset}px`;
+        plane.style.top = `${endpointY + Math.sin(angle) * tailOffset}px`;
+        plane.style.transform = `translate(-50%, -50%) rotate(${rotation}rad)`;
+      }
+
+      function placeBet(index) {
+        if (state !== "idle" && state !== "betting" && state !== "running" && state !== "ended") return;
+
+        const slot = slots[index];
+        const amount = Number(slot.input.value);
+        if (slot.wager && ((state !== "ended" && state !== "running")
+          || slot.wager.status === "queued"
+          || state === "running" && slot.wager.status === "active")) return;
+        if (!Number.isFinite(amount) || amount < MIN_BET || amount > 1000 || amount > balance) {
+          setNotice(`Enter a bet from KSh ${MIN_BET} up to your available balance (maximum KSh 1,000).`, true);
+          updateControls();
+          return;
+        }
+        const autoAt = slot.autoEnabled.getAttribute("aria-pressed") === "true" ? Number(slot.autoTarget.value) : null;
+        if (autoAt !== null && (!Number.isFinite(autoAt) || autoAt < 1.01 || autoAt > 1000)) {
+          setNotice("Set auto cashout between 1.01× and 1,000×, or turn it off.", true);
+          updateControls();
+          return;
+        }
+        const queued = state === "ended" || state === "running";
+        slot.wager = { amount, status: queued ? "queued" : "active", payout: 0, autoAt };
+        balance -= amount;
+        displayBalance();
+        if (state === "idle") beginBettingWindow();
+        else if (queued) {
+          setNotice(`Bet ${index + 1} is placed for the next flight.`);
+          updateControls();
+        }
+        else {
+          setNotice("Bet placed. Add your second bet before takeoff if you want a second cash-out.");
+          updateControls();
+        }
+      }
+
+      function beginBettingWindow() {
+        state = "betting";
+        nextRoundAt = Date.now() + NEXT_ROUND_DELAY;
+        statusNode.className = "status";
+        statusText.textContent = "Bets open · takeoff soon";
+        messageNode.textContent = "Place bets before takeoff";
+        setNotice("Place one or two bets before the 10-second countdown ends.");
+        updateControls();
+        startCountdown("betting");
+      }
+
+      function startFlight() {
+        slots.forEach(slot => {
+          if (slot.wager && slot.wager.status === "queued") slot.wager.status = "active";
+          else if (slot.wager && slot.wager.status !== "active") slot.wager = null;
+        });
+        displayBalance();
+        const random = Math.random();
+        crashAt = Math.min(MAX_CRASH_MULTIPLIER, Math.max(1.01, Math.floor((1 / (1 - random)) * 100) / 100));
+        startedAt = performance.now();
+        multiplier = 1;
+        state = "running";
+        statusNode.className = "status live";
+        statusText.textContent = "In flight";
+        messageNode.textContent = slots.some(slot => slot.wager)
+          ? "Cash out each bet before the crash!"
+          : "No bets this flight · place one during the next countdown";
+        plane.className = "plane flying";
+        multiplierNode.className = "multiplier live";
+        setNotice("The flight is live. Cash out each bet separately before the plane disappears.");
+        updateControls();
+        animationFrame = requestAnimationFrame(tick);
+      }
+
+      function startCountdown(mode) {
+        window.clearInterval(countdownInterval);
+        countdownInterval = window.setInterval(() => {
+          if (Date.now() < nextRoundAt) {
+            updateControls();
+            return;
+          }
+          window.clearInterval(countdownInterval);
+          countdownInterval = 0;
+          if (mode === "betting" && state === "betting") {
+            startFlight();
+          } else if (mode === "next" && state === "ended") {
+            round += 1;
+            resetFlight(true);
+            startFlight();
+          }
+        }, 250);
+      }
+
+      function tick(now) {
+        if (state !== "running") return;
+        const elapsed = (now - startedAt) / 1000;
+        const nextMultiplier = Math.exp(elapsed * GROWTH_RATE);
+        if (nextMultiplier >= crashAt) {
+          multiplier = crashAt;
+          drawFlight(elapsed);
+          finishCrash();
+          return;
+        }
+        multiplier = nextMultiplier;
+        slots.forEach((slot, index) => {
+          if (slot.wager && slot.wager.status === "active" && slot.wager.autoAt !== null && multiplier >= slot.wager.autoAt) {
+            cashOut(index, slot.wager.autoAt, true);
+          }
+        });
+        multiplierNode.textContent = `${multiplier.toFixed(2)}×`;
+        if (slots.some(slot => slot.wager && slot.wager.status === "active")) {
+          messageNode.textContent = "Cash out each bet before the crash!";
+        }
+        drawFlight(elapsed);
+        updateControls();
+        animationFrame = requestAnimationFrame(tick);
+      }
+
+      function addResult(value) {
+        results.unshift(value);
+        results = results.slice(0, 10);
+        historyNode.replaceChildren();
+        results.forEach(result => {
+          const chip = document.createElement("span");
+          chip.className = `history-item${result >= 2 ? " high" : ""}`;
+          chip.textContent = `${result.toFixed(2)}×`;
+          historyNode.append(chip);
+        });
+      }
+
+      function scheduleNextRound() {
+        nextRoundAt = Date.now() + NEXT_ROUND_DELAY;
+        setNotice("The next flight starts in 10 seconds. Place bets now for the next round.");
+        updateControls();
+        startCountdown("next");
+      }
+
+      function finishCrash() {
+        cancelAnimationFrame(animationFrame);
+        state = "ended";
+        slots.forEach(slot => {
+          if (slot.wager && slot.wager.status === "active") slot.wager.status = "lost";
+        });
+        addResult(crashAt);
+        multiplierNode.textContent = `${crashAt.toFixed(2)}×`;
+        multiplierNode.className = "multiplier crashed";
+        messageNode.textContent = `Crashed at ${crashAt.toFixed(2)}×`;
+        statusNode.className = "status crashed";
+        statusText.textContent = "Flight ended";
+        plane.className = "plane";
+        const lostCount = slots.filter(slot => slot.wager && slot.wager.status === "lost").length;
+        setNotice(`The plane disappeared at ${crashAt.toFixed(2)}×. ${lostCount} uncashed bet${lostCount === 1 ? "" : "s"} lost.`);
+        updateControls();
+        scheduleNextRound();
+      }
+
+      function cashOut(index, atMultiplier = multiplier, automatic = false) {
+        const slot = slots[index];
+        if (state !== "running" || !slot.wager || slot.wager.status !== "active") return;
+        const payout = Math.floor(slot.wager.amount * atMultiplier * 100) / 100;
+        slot.wager.status = "cashed";
+        slot.wager.payout = payout;
+        balance += payout;
+        displayBalance();
+        const remaining = slots.filter(item => item.wager && item.wager.status === "active").length;
+        messageNode.textContent = automatic
+          ? `Bet ${index + 1} auto cashed out at ${atMultiplier.toFixed(2)}×`
+          : remaining ? `Bet ${index + 1} cashed out · flight continues` : "All bets cashed out · flight continues";
+        setNotice(`Bet ${index + 1} ${automatic ? "auto " : ""}cashed out at ${atMultiplier.toFixed(2)}× and returned ${money(payout)}.`);
+        updateControls();
+      }
+
+      slots.forEach((slot, index) => {
+        slot.button.addEventListener("click", () => {
+          if (state === "running" && slot.wager && slot.wager.status === "active") cashOut(index);
+          else placeBet(index);
+        });
+        slot.input.addEventListener("input", () => {
+          slot.summary.textContent = money(Number(slot.input.value) || 0);
+          setNotice("Place one or two bets before takeoff. Minimum bet KSh 10.");
+          updateControls();
+        });
+        slot.autoEnabled.addEventListener("click", () => {
+          slot.autoEnabled.setAttribute("aria-pressed", String(slot.autoEnabled.getAttribute("aria-pressed") !== "true"));
+          updateControls();
+        });
+        slot.autoTarget.addEventListener("input", updateControls);
+      });
+
+      document.querySelectorAll(".quick-bets button").forEach(item => {
+        item.addEventListener("click", () => {
+          const slot = slots[Number(item.dataset.slot)];
+          slot.input.value = item.dataset.amount;
+          slot.summary.textContent = money(Number(item.dataset.amount));
+          setNotice("Place one or two bets before takeoff. Minimum bet KSh 10.");
+          updateControls();
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        if (state !== "running" && state !== "betting") positionPlane(34, 300);
+      });
+
+      displayBalance();
+      positionPlane(34, 300, 0);
+      updateControls();
+      beginBettingWindow();
+    })();
+  </script>
+  <script src="/game-account.js" defer></script>
+</body>
+</html>
