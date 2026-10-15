@@ -258,3 +258,133 @@ test("requires policy confirmations, verifies email, rotates sessions and resets
   const protectedAfterLogout = await requestJson("/");
   assert.equal(protectedAfterLogout.response.status, 302);
 });
+
+test("supports complete local signup and sign-in without SMTP or a preconfigured secret", async () => {
+  const port = await reservePort();
+  const localBaseUrl = `http://127.0.0.1:${port}`;
+  const localDatabase = path.join(tempDir, "local-development.sqlite");
+  const env = {
+    ...process.env,
+    NODE_ENV: "development",
+    PORT: String(port),
+    PUBLIC_BASE_URL: localBaseUrl,
+    DATABASE_FILE: localDatabase,
+    SMTP_HOST: "",
+    SMTP_PORT: "",
+    SMTP_SECURE: "false",
+    SMTP_USER: "",
+    SMTP_PASS: "",
+    EMAIL_FROM: ""
+  };
+  delete env.SESSION_SECRET;
+
+  const localServer = spawn(process.execPath, [path.join(root, "server.js")], {
+    cwd: root,
+    env,
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  let output = "";
+  localServer.stdout.on("data", chunk => { output += chunk.toString(); });
+  localServer.stderr.on("data", chunk => { output += chunk.toString(); });
+  let localCookie = "";
+  let localCsrf = "";
+
+  async function localRequest(endpoint, method = "GET", body) {
+    const headers = {};
+    if (localCookie) headers.Cookie = localCookie;
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      headers["X-CSRF-Token"] = localCsrf;
+    }
+    const response = await fetch(`${localBaseUrl}${endpoint}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      redirect: "manual"
+    });
+    for (const header of response.headers.getSetCookie()) {
+      if (header.startsWith("skybound.sid=;")) localCookie = "";
+      else if (header.startsWith("skybound.sid=")) localCookie = header.split(";", 1)[0];
+    }
+    const contentType = response.headers.get("content-type") || "";
+    const result = contentType.includes("application/json") ? await response.json() : await response.text();
+    return { response, result };
+  }
+
+  try {
+    const deadline = Date.now() + 15000;
+    let config;
+    while (Date.now() < deadline) {
+      if (localServer.exitCode !== null) throw new Error(`Local server exited:\n${output}`);
+      try {
+        const response = await fetch(`${localBaseUrl}/api/auth/config`);
+        if (response.ok) {
+          config = await response.json();
+          break;
+        }
+      } catch {}
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert.ok(config, `Local server did not become ready:\n${output}`);
+    assert.equal(config.emailConfigured, false);
+    assert.equal(config.localVerificationEnabled, true);
+    assert.match(output, /temporary local session secret/i);
+
+    const csrf = await localRequest("/api/auth/csrf");
+    assert.equal(csrf.response.status, 200);
+    localCsrf = csrf.result.token;
+
+    const email = "local-account@example.test";
+    const registration = await localRequest("/api/auth/register", "POST", {
+      email,
+      password,
+      ageConfirmed: true,
+      termsAccepted: true,
+      privacyAcknowledged: true,
+      termsVersion: config.termsVersion,
+      privacyVersion: config.privacyVersion
+    });
+    assert.equal(registration.response.status, 201, JSON.stringify(registration.result));
+    const verificationUrl = new URL(registration.result.verificationUrl);
+    assert.equal(verificationUrl.origin, localBaseUrl);
+
+    const unverifiedLogin = await localRequest("/api/auth/login", "POST", { email, password });
+    assert.equal(unverifiedLogin.response.status, 403);
+
+    const verification = await localRequest("/api/auth/verify", "POST", {
+      token: verificationUrl.searchParams.get("token")
+    });
+    assert.equal(verification.response.status, 200);
+
+    const login = await localRequest("/api/auth/login", "POST", { email, password });
+    assert.equal(login.response.status, 200);
+    localCsrf = login.result.csrfToken;
+    const game = await localRequest("/");
+    assert.equal(game.response.status, 200);
+    assert.match(game.result, /ROUND #001/);
+
+    const resetRequest = await localRequest("/api/auth/request-password-reset", "POST", { email });
+    assert.equal(resetRequest.response.status, 200);
+    const resetUrl = new URL(resetRequest.result.resetUrl);
+    assert.equal(resetUrl.origin, localBaseUrl);
+    const newPassword = "A-new-local-password-2026";
+    const reset = await localRequest("/api/auth/reset-password", "POST", {
+      token: resetUrl.searchParams.get("token"),
+      password: newPassword
+    });
+    assert.equal(reset.response.status, 200);
+
+    const csrfAfterReset = await localRequest("/api/auth/csrf");
+    assert.equal(csrfAfterReset.response.status, 200);
+    localCsrf = csrfAfterReset.result.token;
+    const oldPasswordLogin = await localRequest("/api/auth/login", "POST", { email, password });
+    assert.equal(oldPasswordLogin.response.status, 401);
+    const newPasswordLogin = await localRequest("/api/auth/login", "POST", { email, password: newPassword });
+    assert.equal(newPasswordLogin.response.status, 200);
+  } finally {
+    if (localServer.exitCode === null) {
+      localServer.kill();
+      await Promise.race([once(localServer, "exit"), new Promise(resolve => setTimeout(resolve, 3000))]);
+    }
+  }
+});

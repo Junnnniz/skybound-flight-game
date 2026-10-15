@@ -13,7 +13,7 @@ The current game is browser-side demo logic: balances and results can be changed
 ## Requirements
 
 - Node.js 20 or newer
-- An SMTP account for email verification and password-reset links
+- SMTP is optional for local development; configure it to deliver verification and password-reset emails
 
 ## Run locally on Windows
 
@@ -24,22 +24,7 @@ The current game is browser-side demo logic: balances and results can be changed
    npm install
    ```
 
-3. Create your local environment file:
-
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-4. Generate a session secret:
-
-   ```powershell
-   node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
-   ```
-
-   Put the generated value in `SESSION_SECRET` in `.env`.
-
-5. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`. For port 587, use `SMTP_SECURE=false`; for port 465, use `SMTP_SECURE=true`. `PUBLIC_BASE_URL` must match the URL used to open the game, such as `http://localhost:3000`.
-6. Start the server and open the local URL:
+3. Start the server and open the local URL:
 
    ```powershell
    npm start
@@ -47,7 +32,15 @@ The current game is browser-side demo logic: balances and results can be changed
 
    Browse to `http://localhost:3000`. Do not open `index.html` as a `file:` URL; authentication is enforced by the server.
 
+4. Open **Create account**, use a password of at least 12 characters, confirm you are 18 or older, and accept the Terms and Privacy Notice. Without SMTP configured, local development displays a verification link on the page; open it, then sign in. This local verification-link fallback is disabled in production.
+
 The app creates `data/skybound.sqlite` automatically; account data and expiring sessions are stored in that database. Keep the `data` folder private and back it up securely. `.env`, databases, and installed packages are excluded from Git.
+
+### Optional local email setup
+
+To test email delivery instead of local verification links, create `.env` from `.env.example` and configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`. For port 587, use `SMTP_SECURE=false`; for port 465, use `SMTP_SECURE=true`. Set a random `SESSION_SECRET` of at least 32 characters. `PUBLIC_BASE_URL` must match the URL used to open the game, such as `http://localhost:3000`. Restart the server after changing `.env`.
+
+When running locally without a configured `SESSION_SECRET`, the server creates a temporary random secret. Sessions are invalidated when the server restarts. Production never uses this fallback.
 
 ## Production notes
 

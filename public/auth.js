@@ -10,6 +10,7 @@
     verify: $("verify-panel")
   };
   const message = $("auth-message");
+  const actionLink = $("auth-action-link");
   const submitButtons = document.querySelectorAll(".primary");
   let csrfToken = "";
   let accountConfig = null;
@@ -17,6 +18,18 @@
   function setMessage(text, kind = "") {
     message.textContent = text;
     message.className = `message${kind ? ` ${kind}` : ""}`;
+    actionLink.hidden = true;
+    actionLink.removeAttribute("href");
+  }
+
+  function setActionLink(url, text) {
+    const target = new URL(url, window.location.origin);
+    if (target.origin !== window.location.origin) {
+      throw new Error("The account service returned an invalid local link. Check the server URL and try again.");
+    }
+    actionLink.href = target.href;
+    actionLink.textContent = text;
+    actionLink.hidden = false;
   }
 
   function showPanel(name, title, subtitle, showTabs = false) {
@@ -122,6 +135,7 @@
         privacyVersion: accountConfig.privacyVersion
       });
       setMessage(result.message, "success");
+      if (result.verificationUrl) setActionLink(result.verificationUrl, "Verify email");
       form.hidden = true;
     } catch (error) {
       handleError(error);
@@ -136,6 +150,7 @@
     try {
       const result = await postJson("/api/auth/resend-verification", { email });
       setMessage(result.message, "success");
+      if (result.verificationUrl) setActionLink(result.verificationUrl, "Verify email");
     } catch (error) {
       handleError(error);
     }
@@ -149,6 +164,7 @@
     try {
       const result = await postJson("/api/auth/request-password-reset", { email: $("reset-email").value });
       setMessage(result.message, "success");
+      if (result.resetUrl) setActionLink(result.resetUrl, "Choose a new password");
       form.hidden = true;
     } catch (error) {
       handleError(error);
@@ -208,8 +224,13 @@
       const config = await readApiResponse(response);
       accountConfig = config;
       if (!config.emailConfigured) {
+        $("email-setup-notice").textContent = config.localVerificationEnabled
+          ? "Email is not configured. In local development, verification and recovery links are shown here instead; they are never emailed."
+          : "Account creation and recovery are unavailable until SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and EMAIL_FROM are configured in the server’s .env file and the server is restarted.";
         $("email-setup-notice").hidden = false;
-        $("signup-form").querySelector('button[type="submit"]').disabled = true;
+        if (!config.localVerificationEnabled) {
+          $("signup-form").querySelector('button[type="submit"]').disabled = true;
+        }
       }
     } catch (error) {
       $("signup-form").querySelector('button[type="submit"]').disabled = true;

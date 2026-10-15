@@ -90,6 +90,7 @@
     .message { min-height: 20px; margin: 15px 0 0; color: var(--muted); font-size: 12px; }
     .message.error { color: var(--red); }
     .message.success { color: var(--mint); }
+    .action-link { display: inline-block; margin-top: 9px; padding: 8px 11px; border: 1px solid rgba(83, 224, 176, .3); border-radius: 8px; background: rgba(83, 224, 176, .08); color: var(--mint); font-size: 12px; font-weight: 750; }
     .setup-notice { margin: 0 0 15px; padding: 10px 12px; border: 1px solid rgba(255, 206, 105, .24); border-radius: 9px; background: rgba(255, 206, 105, .07); color: #f2d28c; font-size: 11px; }
     .setup-notice p { margin: 7px 0 0; }
     .setup-notice ol { margin: 8px 0 0; padding-left: 19px; }
@@ -161,10 +162,11 @@
           <li>Open PowerShell in the Skybound project folder and run <code>npm start</code>.</li>
           <li>Open <a href="http://localhost:3000/login">http://localhost:3000/login</a> in your browser.</li>
         </ol>
-        <p>If you do not already have a verified account, email delivery must be configured before you can sign up.</p>
+        <p>Local sign-up works without email; the server provides a verification link. Open the account page through the local server to continue.</p>
       </section>
-      <p class="setup-notice" id="email-setup-notice" hidden>Account creation and recovery are unavailable until SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and EMAIL_FROM are configured in the server’s <code>.env</code> file and the server is restarted.</p>
+      <p class="setup-notice" id="email-setup-notice" hidden></p>
       <p class="message" id="auth-message" role="status" aria-live="polite"></p>
+      <a class="action-link" id="auth-action-link" hidden></a>
 
       <form id="login-form" class="form-stack" hidden>
         <div class="field">

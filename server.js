@@ -13,9 +13,13 @@ const nodemailer = require("nodemailer");
 
 const scrypt = promisify(crypto.scrypt);
 const PORT = Number(process.env.PORT || 3000);
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PRODUCTION = NODE_ENV === "production";
+const IS_DEVELOPMENT = NODE_ENV === "development";
 const BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`).replace(/\/+$/, "");
-const SESSION_SECRET = process.env.SESSION_SECRET || "";
+const configuredSessionSecret = process.env.SESSION_SECRET || "";
+const SESSION_SECRET = configuredSessionSecret
+  || (IS_DEVELOPMENT ? crypto.randomBytes(48).toString("base64url") : "");
 const DATABASE_FILE = path.resolve(process.env.DATABASE_FILE || "./data/skybound.sqlite");
 const DATA_DIR = path.dirname(DATABASE_FILE);
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -26,8 +30,8 @@ const PRIVACY_VERSION = "2026-10-16-draft-1";
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
   throw new Error("PORT must be an integer between 1 and 65535.");
 }
-if (SESSION_SECRET.length < 32) {
-  throw new Error("Set SESSION_SECRET in .env to a random value of at least 32 characters.");
+if (!IS_DEVELOPMENT && SESSION_SECRET.length < 32) {
+  throw new Error("Set SESSION_SECRET in .env to a random value of at least 32 characters outside local development.");
 }
 if (!/^https?:\/\//i.test(BASE_URL) || (IS_PRODUCTION && !/^https:\/\//i.test(BASE_URL))) {
   throw new Error("PUBLIC_BASE_URL must be an absolute URL; production requires HTTPS.");
@@ -375,6 +379,7 @@ app.get("/api/auth/config", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json({
     emailConfigured: Boolean(transporter),
+    localVerificationEnabled: IS_DEVELOPMENT && !transporter,
     termsVersion: TERMS_VERSION,
     privacyVersion: PRIVACY_VERSION
   });
@@ -405,7 +410,7 @@ app.post("/api/auth/register", accountLimiter, requireCsrf, async (req, res) => 
   if (req.body.termsVersion !== TERMS_VERSION || req.body.privacyVersion !== PRIVACY_VERSION) {
     return apiError(res, 400, "The account policies changed. Refresh the page and review them before signing up.");
   }
-  if (!transporter) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
+  if (!transporter && !IS_DEVELOPMENT) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
   if (statements.userByEmail.get(email)) {
     return apiError(res, 409, "An account already exists for that email. Try signing in or resetting your password.");
   }
@@ -422,7 +427,7 @@ app.post("/api/auth/register", accountLimiter, requireCsrf, async (req, res) => 
       statements.insertToken.run(hashToken(token), userId, "verify", now + TOKEN_TTL_MS, now);
     });
     createPendingAccount();
-    await sendVerificationEmail({ id: userId, email }, token);
+    if (transporter) await sendVerificationEmail({ id: userId, email }, token);
   } catch (error) {
     if (userId) {
       db.prepare("DELETE FROM users WHERE id = ?").run(userId);
@@ -433,7 +438,12 @@ app.post("/api/auth/register", accountLimiter, requireCsrf, async (req, res) => 
     return apiError(res, error.code === "EMAIL_NOT_CONFIGURED" ? 503 : 502,
       "We could not send the verification email. Check the email service configuration and try signing up again.");
   }
-  res.status(201).json({ message: "Account created. Check your inbox for a verification link." });
+  res.status(201).json(transporter
+    ? { message: "Account created. Check your inbox for a verification link." }
+    : {
+        message: "Account created. Open the local verification link below to activate your account.",
+        verificationUrl: `${BASE_URL}/verify?token=${encodeURIComponent(token)}`
+      });
 });
 
 app.post("/api/auth/login", accountLimiter, requireCsrf, async (req, res, next) => {
@@ -481,43 +491,63 @@ app.post("/api/auth/verify", accountLimiter, requireCsrf, (req, res) => {
 app.post("/api/auth/resend-verification", accountLimiter, requireCsrf, async (req, res) => {
   const email = normalizedEmail(req.body && req.body.email);
   if (!validEmail(email)) return apiError(res, 400, "Enter a valid email address.");
-  if (!transporter) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
+  if (!transporter && !IS_DEVELOPMENT) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
   const user = statements.userByEmail.get(email);
+  let verificationUrl;
   if (user && !user.verified_at) {
     const token = randomToken();
     const now = Date.now();
     statements.deleteUserTokens.run(user.id, "verify");
     statements.insertToken.run(hashToken(token), user.id, "verify", now + TOKEN_TTL_MS, now);
-    try {
-      await sendVerificationEmail(user, token);
-    } catch (error) {
-      statements.deleteToken.run(hashToken(token));
-      console.error("Verification email resend failed:", error.message);
-      return apiError(res, 502, "We could not send the verification email. Try again later.");
+    if (transporter) {
+      try {
+        await sendVerificationEmail(user, token);
+      } catch (error) {
+        statements.deleteToken.run(hashToken(token));
+        console.error("Verification email resend failed:", error.message);
+        return apiError(res, 502, "We could not send the verification email. Try again later.");
+      }
+    } else {
+      verificationUrl = `${BASE_URL}/verify?token=${encodeURIComponent(token)}`;
     }
   }
-  res.json({ message: "If the account needs verification, a new email has been sent." });
+  res.json({
+    message: transporter
+      ? "If the account needs verification, a new email has been sent."
+      : "If the account needs verification, a local verification link is available below.",
+    ...(verificationUrl ? { verificationUrl } : {})
+  });
 });
 
 app.post("/api/auth/request-password-reset", accountLimiter, requireCsrf, async (req, res) => {
   const email = normalizedEmail(req.body && req.body.email);
   if (!validEmail(email)) return apiError(res, 400, "Enter a valid email address.");
-  if (!transporter) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
+  if (!transporter && !IS_DEVELOPMENT) return apiError(res, 503, "Account email is not configured yet. Please try again later.");
   const user = statements.userByEmail.get(email);
+  let resetUrl;
   if (user && user.verified_at) {
     const token = randomToken();
     const now = Date.now();
     statements.deleteUserTokens.run(user.id, "reset");
     statements.insertToken.run(hashToken(token), user.id, "reset", now + TOKEN_TTL_MS, now);
-    try {
-      await sendPasswordResetEmail(user, token);
-    } catch (error) {
-      statements.deleteToken.run(hashToken(token));
-      console.error("Password reset email failed:", error.message);
-      return apiError(res, 502, "We could not send the password reset email. Try again later.");
+    if (transporter) {
+      try {
+        await sendPasswordResetEmail(user, token);
+      } catch (error) {
+        statements.deleteToken.run(hashToken(token));
+        console.error("Password reset email failed:", error.message);
+        return apiError(res, 502, "We could not send the password reset email. Try again later.");
+      }
+    } else {
+      resetUrl = `${BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
     }
   }
-  res.json({ message: "If a verified account uses that email, a password reset link has been sent." });
+  res.json({
+    message: transporter
+      ? "If a verified account uses that email, a password reset link has been sent."
+      : "If a verified account uses that email, a local password-reset link is available below.",
+    ...(resetUrl ? { resetUrl } : {})
+  });
 });
 
 app.post("/api/auth/reset-password", accountLimiter, requireCsrf, async (req, res) => {
@@ -587,5 +617,12 @@ app.use((error, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Skybound server listening on ${BASE_URL}`);
-  if (!transporter) console.warn("SMTP is not configured. Sign-up, verification, and password reset emails are unavailable.");
+  if (!configuredSessionSecret && IS_DEVELOPMENT) {
+    console.warn("Using a temporary local session secret. Sessions expire when the server restarts.");
+  }
+  if (!transporter) {
+    console.warn(IS_DEVELOPMENT
+      ? "SMTP is not configured. Local-only verification and password-reset links are enabled."
+      : "SMTP is not configured. Account registration and recovery are unavailable.");
+  }
 });
